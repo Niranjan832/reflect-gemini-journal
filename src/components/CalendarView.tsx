@@ -70,7 +70,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDateSelect, entries }) =>
           onSelect={handleDateSelect}
           className="rounded-md border"
           components={{
-            Day: ({ day, selected }) => customDayRender(day, !!selected),
+            Day: ({ date, isSelected }) => customDayRender(date, isSelected),
           }}
         />
       </CardContent>
