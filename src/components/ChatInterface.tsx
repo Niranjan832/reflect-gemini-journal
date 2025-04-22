@@ -5,14 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { generateGeminiResponse } from '@/utils/apiUtils';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, X, Image, Video } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import MediaUploader from './MediaUploader';
 
 interface Message {
   id: string;
   text: string;
   sender: 'user' | 'ai';
   timestamp: Date;
+  mediaFiles?: File[];
 }
 
 interface ChatInterfaceProps {
@@ -26,12 +28,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
       text: "Hello! I'm your journal assistant. How are you feeling today?",
       sender: 'ai',
       timestamp: new Date(),
+      mediaFiles: [],
     },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Media file support in chat mode
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
 
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -44,27 +50,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() && mediaFiles.length === 0) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       text: input,
       sender: 'user',
       timestamp: new Date(),
+      mediaFiles: mediaFiles.length ? mediaFiles : [],
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
+    setMediaFiles([]);
     setIsLoading(true);
 
     try {
       const response = await generateGeminiResponse(input);
-      
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: response,
         sender: 'ai',
         timestamp: new Date(),
+        mediaFiles: [],
       };
 
       setMessages((prev) => [...prev, aiMessage]);
@@ -87,41 +96,76 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
     }
   };
 
+  // Show attached media thumbnails in chat compose area
+  const handleMediaAdded = (files: File[]) => {
+    setMediaFiles(files);
+  };
+
+  const handleRemoveMedia = (idx: number) => {
+    setMediaFiles(prev => {
+      const updated = [...prev];
+      updated.splice(idx, 1);
+      return updated;
+    });
+  };
+
   return (
-    <Card className="w-full h-[500px] flex flex-col">
-      <CardHeader>
-        <CardTitle className="text-xl font-serif">Journal Assistant</CardTitle>
+    <Card className="w-full h-[min(430px,55vw)] flex flex-col bg-white overflow-hidden">
+      <CardHeader className="pt-4 pb-2">
+        <CardTitle className="text-lg sm:text-xl font-serif">Journal Assistant</CardTitle>
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden p-0">
-        <ScrollArea className="h-[350px] px-4" ref={scrollAreaRef}>
-          <div className="space-y-4 pt-4">
-            {messages.map((msg) => (
+        <ScrollArea className="h-[180px] sm:h-[270px] px-2" ref={scrollAreaRef}>
+          <div className="space-y-4 pt-2">
+            {messages.map((msg, msgIdx) => (
               <div
                 key={msg.id}
-                className={`flex ${
-                  msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                }`}
+                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                    msg.sender === 'user'
-                      ? 'bg-journal-primary text-white'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
+                  className={`max-w-[86%] rounded-lg px-4 py-2 
+                    ${msg.sender === 'user'
+                    ? 'bg-journal-primary text-white'
+                    : 'bg-gray-100 text-gray-800'}
+                    break-words
+                  `}
                 >
-                  <p className="whitespace-pre-wrap">{msg.text}</p>
-                  <p className="text-xs opacity-70 mt-1">
+                  <div className="whitespace-pre-wrap break-words">{msg.text}</div>
+                  {(msg.mediaFiles && msg.mediaFiles.length > 0) && (
+                    <div className="flex mt-2 gap-2 flex-wrap">
+                      {msg.mediaFiles.map((file, idx) => (
+                        file.type.startsWith('image/') ? (
+                          <img 
+                            key={idx}
+                            src={URL.createObjectURL(file)}
+                            alt="uploaded media"
+                            className="h-14 w-14 rounded object-cover border"
+                          />
+                        ) : (
+                          <video 
+                            key={idx}
+                            src={URL.createObjectURL(file)}
+                            className="h-14 w-20 rounded object-cover border bg-gray-200"
+                            controls
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+                        )
+                      ))}
+                    </div>
+                  )}
+                  <div className="text-xs opacity-70 mt-1">
                     {new Date(msg.timestamp).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
                     })}
-                  </p>
+                  </div>
                 </div>
               </div>
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-lg px-4 py-2 bg-gray-100 text-gray-800">
+                <div className="max-w-[86%] rounded-lg px-4 py-2 bg-gray-100 text-gray-800">
                   <Loader2 className="h-5 w-5 animate-spin" />
                 </div>
               </div>
@@ -129,7 +173,41 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
           </div>
         </ScrollArea>
       </CardContent>
-      <CardFooter className="pt-0">
+      <CardFooter className="pt-0 flex-col gap-2 bg-white flex-shrink-0">
+        {/* Media thumbnails to preview/remove before sending */}
+        {mediaFiles.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto mb-1">
+            {mediaFiles.map((file, idx) =>
+              file.type.startsWith('image/') ? (
+                <div className="relative" key={idx}>
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt="preview"
+                    className="h-12 w-12 object-cover rounded border"
+                  />
+                  <button
+                    type="button"
+                    className="absolute -top-1 -right-1 bg-white rounded-full border p-0.5"
+                    onClick={() => handleRemoveMedia(idx)}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative" key={idx}>
+                  <Video className="h-12 w-12 text-gray-500 border" />
+                  <button
+                    type="button"
+                    className="absolute -top-1 -right-1 bg-white rounded-full border p-0.5"
+                    onClick={() => handleRemoveMedia(idx)}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+        )}
         <div className="flex w-full items-center space-x-2">
           <Input
             value={input}
@@ -139,10 +217,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
             className="flex-grow"
             disabled={isLoading}
           />
+          <MediaUploader onMediaAdded={handleMediaAdded} mediaFiles={mediaFiles} />
           <Button 
             onClick={handleSendMessage} 
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || (!input.trim() && mediaFiles.length === 0)}
             size="icon"
+            type="button"
           >
             <Send className="h-4 w-4" />
           </Button>
@@ -150,6 +230,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
             variant="outline"
             onClick={() => onSummarize(messages)}
             disabled={messages.length <= 1}
+            type="button"
           >
             Summarize
           </Button>

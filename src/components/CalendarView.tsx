@@ -3,8 +3,7 @@ import React, { useState } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { JournalEntry, MoodType } from '@/types/journal';
-import { getJournalEntriesByDate } from '@/utils/journalUtils';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 
 interface CalendarViewProps {
   onDateSelect: (date: Date) => void;
@@ -21,21 +20,21 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDateSelect, entries }) =>
     }
   };
 
-  // Create a map of dates to mood colors for the calendar
+  // Map of string date to mood for coloring
   const moodDates = entries.reduce<Record<string, MoodType>>((acc, entry) => {
     const dateStr = format(entry.date, 'yyyy-MM-dd');
     acc[dateStr] = entry.mood;
     return acc;
   }, {});
 
-  // Custom day render function to show mood colors
-  const customDayRender = (day: Date, isSelected: boolean) => {
-    const dateStr = format(day, 'yyyy-MM-dd');
+  // The customDayRender function now receives only the Date for the day cell:
+  const customDayRender = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
     const mood = moodDates[dateStr];
-    
+
     let moodColorClass = '';
     if (mood) {
-      switch(mood) {
+      switch (mood) {
         case 'happy':
           moodColorClass = 'bg-mood-happy';
           break;
@@ -50,16 +49,23 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDateSelect, entries }) =>
           break;
       }
     }
-    
+    // Highlight the selected day
+    const isSelected = selectedDate && isSameDay(date, selectedDate);
+
     return (
-      <div className={`w-full h-full flex items-center justify-center rounded-full ${moodColorClass} ${isSelected ? 'text-white font-bold' : ''}`}>
-        {day.getDate()}
+      <div
+        className={`w-full h-full flex items-center justify-center rounded-full 
+        ${moodColorClass} 
+        ${isSelected ? 'text-white font-bold ring-2 ring-journal-primary' : ''}`}
+        style={{ aspectRatio: "1/1", minWidth: 28, minHeight: 28 }}
+      >
+        {date.getDate()}
       </div>
     );
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full max-w-full">
       <CardHeader>
         <CardTitle className="text-xl font-serif">Journal Calendar</CardTitle>
       </CardHeader>
@@ -70,7 +76,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDateSelect, entries }) =>
           onSelect={handleDateSelect}
           className="rounded-md border"
           components={{
-            Day: ({ date, isSelected }) => customDayRender(date, isSelected),
+            Day: ({ date }) => customDayRender(date),
           }}
         />
       </CardContent>
@@ -79,3 +85,4 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDateSelect, entries }) =>
 };
 
 export default CalendarView;
+
