@@ -8,6 +8,8 @@ export interface JournalEntry {
   mood: MoodType;
   summary?: string;
   aiReflection?: string;
+  media?: string[]; // URLs to media files
+  isPublished?: boolean; // Whether this entry is shared as a blog
 }
 
 export interface DailyPrompt {

@@ -1,11 +1,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getJournalEntryById } from '@/utils/journalUtils';
+import { getJournalEntryById, shareEntryAsBlog } from '@/utils/journalUtils';
 import { JournalEntry as JournalEntryType } from '@/types/journal';
 import JournalEntryComponent from '@/components/JournalEntry';
+import ShareBlogButton from '@/components/ShareBlogButton';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Calendar } from 'lucide-react';
 
 const EntryDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +21,14 @@ const EntryDetail = () => {
     }
     setLoading(false);
   }, [id]);
+
+  const handleBackToCalendar = () => {
+    if (entry) {
+      navigate('/', { state: { selectedDate: entry.date } });
+    } else {
+      navigate('/');
+    }
+  };
 
   if (loading) {
     return (
@@ -41,16 +50,59 @@ const EntryDetail = () => {
   return (
     <div className="min-h-screen bg-white py-12">
       <div className="max-w-3xl mx-auto px-4">
-        <Button 
-          variant="ghost" 
-          className="mb-6 pl-0 text-journal-secondary"
-          onClick={() => navigate('/')}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Journal
-        </Button>
+        <div className="flex justify-between items-center mb-6">
+          <Button 
+            variant="ghost" 
+            className="pl-0 text-journal-secondary"
+            onClick={() => navigate('/')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Journal
+          </Button>
+          
+          <div className="flex space-x-2">
+            <Button 
+              variant="outline" 
+              className="flex items-center"
+              onClick={handleBackToCalendar}
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              View in Calendar
+            </Button>
+            
+            <ShareBlogButton entry={entry} />
+          </div>
+        </div>
         
         <JournalEntryComponent entry={entry} isDetailed={true} />
+        
+        {entry.media && entry.media.length > 0 && (
+          <div className="mt-8">
+            <h3 className="font-medium text-gray-700 mb-3">Media Attachments</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {entry.media.map((url, index) => {
+                const isImage = !url.includes('video');
+                return (
+                  <div key={index} className="rounded-lg overflow-hidden border h-40">
+                    {isImage ? (
+                      <img 
+                        src={url} 
+                        alt={`Attachment ${index}`} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <video 
+                        src={url} 
+                        controls 
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

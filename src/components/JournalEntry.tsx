@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { JournalEntry as JournalEntryType } from '@/types/journal';
+import { Image } from 'lucide-react';
 
 interface JournalEntryProps {
   entry: JournalEntryType;
@@ -31,14 +32,29 @@ const getMoodColor = (mood: string): string => {
 };
 
 const JournalEntryComponent: React.FC<JournalEntryProps> = ({ entry, isDetailed = false }) => {
+  const hasMedia = entry.media && entry.media.length > 0;
+  
   return (
     <Card className="w-full overflow-hidden transition-all hover:shadow-md animate-fade-in">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg md:text-xl font-serif">{format(entry.date, 'MMMM d, yyyy')}</CardTitle>
-          <Badge className={`${getMoodColor(entry.mood)} font-normal`}>
-            {getMoodEmoji(entry.mood)} {entry.mood.charAt(0).toUpperCase() + entry.mood.slice(1)}
-          </Badge>
+          <div className="flex items-center space-x-2">
+            {hasMedia && (
+              <Badge variant="outline" className="flex items-center space-x-1">
+                <Image className="h-3 w-3" />
+                <span>{entry.media!.length}</span>
+              </Badge>
+            )}
+            {entry.isPublished && (
+              <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200">
+                Published
+              </Badge>
+            )}
+            <Badge className={`${getMoodColor(entry.mood)} font-normal`}>
+              {getMoodEmoji(entry.mood)} {entry.mood.charAt(0).toUpperCase() + entry.mood.slice(1)}
+            </Badge>
+          </div>
         </div>
         <CardDescription>{format(entry.date, 'h:mm a')}</CardDescription>
       </CardHeader>
@@ -49,6 +65,21 @@ const JournalEntryComponent: React.FC<JournalEntryProps> = ({ entry, isDetailed 
             <p className="whitespace-pre-wrap text-gray-700">{entry.content}</p>
           ) : (
             <p className="line-clamp-3 text-gray-700">{entry.content}</p>
+          )}
+          
+          {!isDetailed && hasMedia && (
+            <div className="flex overflow-x-auto space-x-2 pb-2">
+              {entry.media!.slice(0, 3).map((url, index) => (
+                <div key={index} className="h-16 w-16 flex-shrink-0 rounded overflow-hidden border">
+                  <img src={url} alt={`Attachment ${index}`} className="h-full w-full object-cover" />
+                </div>
+              ))}
+              {entry.media!.length > 3 && (
+                <div className="h-16 w-16 flex-shrink-0 rounded overflow-hidden border bg-gray-100 flex items-center justify-center">
+                  <span className="text-sm text-gray-600">+{entry.media!.length - 3}</span>
+                </div>
+              )}
+            </div>
           )}
           
           {isDetailed && entry.summary && (
