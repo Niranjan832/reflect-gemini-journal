@@ -8,6 +8,14 @@ interface DailyPromptProps {
   onClick?: () => void;
 }
 
+// Editable: Change these questions to customize daily prompts
+const dailyQuestions = [
+  "What emotions did you feel most strongly today?",
+  "Was there a moment that stood out to you? Describe it.",
+  "Did you learn anything new or have any realizations?",
+  "Is there anything you want to improve or try tomorrow?"
+];
+
 const DailyPrompt: React.FC<DailyPromptProps> = ({ prompt, onClick }) => {
   return (
     <Card 
@@ -19,7 +27,12 @@ const DailyPrompt: React.FC<DailyPromptProps> = ({ prompt, onClick }) => {
           <div className="text-2xl">💭</div>
           <div>
             <h3 className="text-journal-secondary font-medium mb-1">Today's Prompt</h3>
-            <p className="text-gray-700 font-serif">{prompt.text}</p>
+            <p className="text-gray-700 font-serif mb-3">How was your day?</p>
+            <ul className="list-disc ml-5 text-gray-700 font-serif space-y-1">
+              {dailyQuestions.map((q, i) => (
+                <li key={i}>{q}</li>
+              ))}
+            </ul>
           </div>
         </div>
       </CardContent>
@@ -28,3 +41,4 @@ const DailyPrompt: React.FC<DailyPromptProps> = ({ prompt, onClick }) => {
 };
 
 export default DailyPrompt;
+
