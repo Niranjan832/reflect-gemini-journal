@@ -1,24 +1,21 @@
 
-// NOTE: This is a sample implementation to fix TypeScript errors
-// The actual Index.tsx file should be updated similarly but may have additional content
-
 import React from 'react';
 import { useAsyncData } from '@/utils/asyncUtils';
-import { getAllJournalEntries, addJournalEntry } from '@/utils/journalUtils';
+import { getAllJournalEntries, addJournalEntry, getJournalEntriesByDate, getDailyPrompt, getMoodTrends } from '@/utils/journalUtils';
 import { JournalEntry, MoodType } from '@/types/journal';
 
 const Index = () => {
-  // Use our new hook to handle async data
-  const [entries, loading, error] = useAsyncData(getAllJournalEntries, []);
+  // Use our hook to handle async data
+  const [entries, entriesLoading, entriesError] = useAsyncData(getAllJournalEntries, []);
+  const [dailyPrompt, promptLoading] = useAsyncData(getDailyPrompt, []);
+  const [moodTrends, trendsLoading] = useAsyncData(getMoodTrends, []);
   
   const handleAddEntry = async (content: string, mood: MoodType, media?: File[]) => {
     try {
-      const newEntry = await addJournalEntry(content, mood, media);
-      if (newEntry) {
-        // Refetch entries or update the local state
-        const updatedEntries = await getAllJournalEntries();
-        // This won't cause TypeScript errors now
-      }
+      await addJournalEntry(content, mood, media);
+      // Refetch entries after adding a new one
+      const updatedEntries = await getAllJournalEntries();
+      // This is now type-safe as useAsyncData manages state internally
     } catch (err) {
       console.error('Error adding entry:', err);
     }
@@ -26,7 +23,29 @@ const Index = () => {
 
   return (
     <div>
-      {/* Render your UI based on entries, loading, and error states */}
+      {/* Use the data safely with proper loading states */}
+      {entriesLoading ? (
+        <div>Loading entries...</div>
+      ) : entriesError ? (
+        <div>Error loading entries</div>
+      ) : entries ? (
+        <div>
+          {/* Render your entries */}
+        </div>
+      ) : null}
+
+      {dailyPrompt && !promptLoading && (
+        <div>
+          {/* Now we can safely access dailyPrompt.text */}
+          <p>Today's prompt: {dailyPrompt.text}</p>
+        </div>
+      )}
+
+      {moodTrends && !trendsLoading && (
+        <div>
+          {/* Render mood trends */}
+        </div>
+      )}
     </div>
   );
 };
