@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useAsyncData } from '@/utils/asyncUtils';
@@ -6,18 +7,22 @@ import { getJournalEntryById } from '@/utils/journalUtils';
 const EntryDetail = () => {
   const { id } = useParams<{ id: string }>();
   
-  // Use our hook to handle async data
-  const [entry, loading, error] = useAsyncData(
-    () => getJournalEntryById(id || ''),
-    [id]
-  );
+  const {
+    data: entry,
+    loading,
+    error
+  } = useAsyncData(() => getJournalEntryById(id || ''), [id]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div>Loading journal entry...</div>;
   }
 
-  if (error || !entry) {
-    return <div>Error loading entry</div>;
+  if (error) {
+    return <div>Error loading entry: {error.message}</div>;
+  }
+
+  if (!entry) {
+    return <div>No entry found</div>;
   }
 
   return (

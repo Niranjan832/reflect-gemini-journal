@@ -5,17 +5,29 @@ import { getAllJournalEntries, addJournalEntry, getJournalEntriesByDate, getDail
 import { JournalEntry, MoodType } from '@/types/journal';
 
 const Index = () => {
-  // Use our hook to handle async data
-  const [entries, entriesLoading, entriesError] = useAsyncData(getAllJournalEntries, []);
-  const [dailyPrompt, promptLoading] = useAsyncData(getDailyPrompt, []);
-  const [moodTrends, trendsLoading] = useAsyncData(getMoodTrends, []);
+  const { 
+    data: entries,
+    loading: entriesLoading,
+    error: entriesError
+  } = useAsyncData(getAllJournalEntries, []);
+
+  const {
+    data: dailyPrompt,
+    loading: promptLoading,
+    error: promptError
+  } = useAsyncData(getDailyPrompt, []);
+
+  const {
+    data: moodTrends,
+    loading: trendsLoading,
+    error: trendsError
+  } = useAsyncData(getMoodTrends, []);
   
   const handleAddEntry = async (content: string, mood: MoodType, media?: File[]) => {
     try {
       await addJournalEntry(content, mood, media);
-      // Refetch entries after adding a new one
-      const updatedEntries = await getAllJournalEntries();
-      // This is now type-safe as useAsyncData manages state internally
+      // After adding, you would typically trigger a refetch of entries
+      // This would be handled by your state management solution
     } catch (err) {
       console.error('Error adding entry:', err);
     }
@@ -23,25 +35,33 @@ const Index = () => {
 
   return (
     <div>
-      {/* Use the data safely with proper loading states */}
       {entriesLoading ? (
         <div>Loading entries...</div>
       ) : entriesError ? (
-        <div>Error loading entries</div>
-      ) : entries ? (
+        <div>Error loading entries: {entriesError.message}</div>
+      ) : !entries ? (
+        <div>No entries found</div>
+      ) : (
         <div>
           {/* Render your entries */}
         </div>
-      ) : null}
+      )}
 
-      {dailyPrompt && !promptLoading && (
+      {promptLoading ? (
+        <div>Loading prompt...</div>
+      ) : promptError ? (
+        <div>Error loading prompt: {promptError.message}</div>
+      ) : dailyPrompt && (
         <div>
-          {/* Now we can safely access dailyPrompt.text */}
           <p>Today's prompt: {dailyPrompt.text}</p>
         </div>
       )}
 
-      {moodTrends && !trendsLoading && (
+      {trendsLoading ? (
+        <div>Loading trends...</div>
+      ) : trendsError ? (
+        <div>Error loading trends: {trendsError.message}</div>
+      ) : moodTrends && (
         <div>
           {/* Render mood trends */}
         </div>
