@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { JournalEntry as JournalEntryType, MoodType } from '@/types/journal';
+import { useAsyncData } from '@/utils/asyncUtils';
 import { addJournalEntry, getAllJournalEntries, getDailyPrompt, getMoodTrends, getJournalEntriesByDate } from '@/utils/journalUtils';
 import JournalEntryComponent from '@/components/JournalEntry';
 import JournalEntryForm from '@/components/JournalEntryForm';
@@ -15,24 +16,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // Responsive one-screen layout, no unnecessary scroll
 const Index = () => {
   const navigate = useNavigate();
-  const [entries, setEntries] = useState<JournalEntryType[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [filteredEntries, setFilteredEntries] = useState<JournalEntryType[]>([]);
   const [isWriting, setIsWriting] = useState(false);
 
-  useEffect(() => {
-    const loadedEntries = getAllJournalEntries();
-    setEntries(loadedEntries);
-    const entriesForDate = getJournalEntriesByDate(selectedDate);
-    setFilteredEntries(entriesForDate);
-    // eslint-disable-next-line
-  }, [selectedDate]);
+  const { 
+    data: entries = [],
+    loading: entriesLoading,
+    error: entriesError
+  } = useAsyncData(getAllJournalEntries, []);
 
-  const handleNewEntry = (content: string, mood: MoodType, mediaFiles?: File[]) => {
-    const newEntry = addJournalEntry(content, mood, mediaFiles);
-    setEntries([newEntry, ...entries]);
-    setFilteredEntries([newEntry, ...filteredEntries]);
-    setIsWriting(false);
+  const { 
+    data: filteredEntries = [],
+    loading: filteredEntriesLoading,
+    error: filteredEntriesError
+  } = useAsyncData(() => getJournalEntriesByDate(selectedDate), [selectedDate]);
+
+  const {
+    data: dailyPrompt,
+    loading: promptLoading,
+    error: promptError
+  } = useAsyncData(getDailyPrompt, []);
+
+  const {
+    data: moodTrends = [],
+    loading: trendsLoading,
+    error: trendsError
+  } = useAsyncData(getMoodTrends, []);
+
+  const handleNewEntry = async (content: string, mood: MoodType, mediaFiles?: File[]) => {
+    try {
+      const newEntry = await addJournalEntry(content, mood, mediaFiles);
+      if (newEntry) {
+        // After adding, we'd want to refetch entries
+        // For now, just navigate to the entry detail
+        navigate(`/entry/${newEntry.id}`);
+      }
+    } catch (err) {
+      console.error('Error adding entry:', err);
+    }
   };
 
   const handlePromptClick = () => {
@@ -45,12 +66,7 @@ const Index = () => {
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
-    const entriesForDate = getJournalEntriesByDate(date);
-    setFilteredEntries(entriesForDate);
   };
-
-  const dailyPrompt = getDailyPrompt();
-  const moodTrends = getMoodTrends();
 
   return (
     <div className="bg-white min-h-screen w-full h-screen overflow-hidden flex flex-col">
@@ -60,14 +76,26 @@ const Index = () => {
           <div className="flex flex-col items-center w-full pt-5 pb-2 h-auto flex-shrink-0 min-h-[370px]">
             <CalendarView 
               onDateSelect={handleDateSelect}
-              entries={entries}
+              entries={entries || []}
             />
             <div className="w-full my-3">
-              <MoodVisualization trends={moodTrends} />
+              {trendsLoading ? (
+                <div>Loading trends...</div>
+              ) : trendsError ? (
+                <div>Error loading trends</div>
+              ) : (
+                <MoodVisualization trends={moodTrends} />
+              )}
             </div>
           </div>
           <div className="w-full p-4">
-            <DailyPrompt prompt={dailyPrompt} onClick={handlePromptClick} />
+            {promptLoading ? (
+              <div>Loading prompt...</div>
+            ) : promptError ? (
+              <div>Error loading prompt</div>
+            ) : dailyPrompt ? (
+              <DailyPrompt prompt={dailyPrompt} onClick={handlePromptClick} />
+            ) : null}
           </div>
         </div>
         {/* Main content */}
@@ -85,7 +113,7 @@ const Index = () => {
               <TabsContent value="write" className="flex-1 flex flex-col h-full p-0 border-none">
                 <JournalEntryForm 
                   onSubmit={handleNewEntry} 
-                  promptText={dailyPrompt.text}
+                  promptText={dailyPrompt?.text || "How was your day?"}
                 />
               </TabsContent>
               <TabsContent value="view" className="flex-1 flex flex-col border-none p-0 h-full">
@@ -95,7 +123,11 @@ const Index = () => {
                       {format(selectedDate, 'MMMM d, yyyy')} Entries
                     </h2>
                   </div>
-                  {filteredEntries.length === 0 ? (
+                  {filteredEntriesLoading ? (
+                    <div>Loading entries...</div>
+                  ) : filteredEntriesError ? (
+                    <div>Error loading entries</div>
+                  ) : filteredEntries.length === 0 ? (
                     <div className="text-center py-8 px-2 bg-gray-50 rounded-lg border border-gray-100 flex-1 flex flex-col items-center justify-center max-h-[220px]">
                       <p className="text-gray-400 text-sm">No journal entries for this date.</p>
                       <Button
@@ -129,9 +161,21 @@ const Index = () => {
           {/* Mobile sidebar below */}
           <div className="block lg:hidden w-full bg-journal-surface border-t border-journal-primary/10 px-2 py-3">
             <div className="mb-2">
-              <MoodVisualization trends={moodTrends} />
+              {trendsLoading ? (
+                <div>Loading trends...</div>
+              ) : trendsError ? (
+                <div>Error loading trends</div>
+              ) : (
+                <MoodVisualization trends={moodTrends} />
+              )}
             </div>
-            <DailyPrompt prompt={dailyPrompt} onClick={handlePromptClick} />
+            {promptLoading ? (
+              <div>Loading prompt...</div>
+            ) : promptError ? (
+              <div>Error loading prompt</div>
+            ) : dailyPrompt ? (
+              <DailyPrompt prompt={dailyPrompt} onClick={handlePromptClick} />
+            ) : null}
           </div>
         </div>
       </div>

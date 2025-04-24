@@ -1,6 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAsyncData } from '@/utils/asyncUtils';
 import { getJournalEntryById, shareEntryAsBlog } from '@/utils/journalUtils';
 import { JournalEntry as JournalEntryType } from '@/types/journal';
 import JournalEntryComponent from '@/components/JournalEntry';
@@ -11,16 +12,12 @@ import { ArrowLeft, Calendar } from 'lucide-react';
 const EntryDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [entry, setEntry] = useState<JournalEntryType | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (id) {
-      const foundEntry = getJournalEntryById(id);
-      setEntry(foundEntry || null);
-    }
-    setLoading(false);
-  }, [id]);
+  
+  const {
+    data: entry,
+    loading,
+    error
+  } = useAsyncData(() => getJournalEntryById(id || ''), [id]);
 
   const handleBackToCalendar = () => {
     if (entry) {
@@ -34,6 +31,15 @@ const EntryDetail = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="h-8 w-8 rounded-full border-4 border-journal-primary border-t-transparent animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <h1 className="text-2xl font-serif text-gray-800 mb-4">Error: {error.message}</h1>
+        <Button onClick={() => navigate('/')}>Return to Journal</Button>
       </div>
     );
   }
