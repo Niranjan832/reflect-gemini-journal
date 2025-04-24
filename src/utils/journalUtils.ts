@@ -1,3 +1,4 @@
+
 import { supabase } from '@/lib/supabase';
 import { JournalEntry, MoodType, DailyPrompt, MoodTrend } from '@/types/journal';
 import { format } from 'date-fns';
@@ -127,36 +128,61 @@ export const addJournalEntry = async (
   };
 };
 
-export const shareEntryAsBlog = (entryId: string): JournalEntry | null => {
-  const entry = mockJournalEntries.find(e => e.id === entryId);
+// Replace mock data with actual implementation
+export const shareEntryAsBlog = async (entryId: string): Promise<JournalEntry | null> => {
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .update({ is_published: true })
+    .eq('id', entryId)
+    .select()
+    .single();
   
-  if (!entry) return null;
-  
-  entry.isPublished = true;
-  return entry;
-};
-
-export const getDailyPrompt = (): DailyPrompt => {
-  const today = format(new Date(), 'yyyy-MM-dd');
-  
-  const todayPrompt = mockPrompts.find(prompt => 
-    format(prompt.date, 'yyyy-MM-dd') === today
-  );
-  
-  if (todayPrompt) {
-    return todayPrompt;
+  if (error || !data) {
+    console.error('Error publishing entry:', error);
+    return null;
   }
   
-  return mockPrompts[mockPrompts.length - 1];
+  return {
+    ...data,
+    date: new Date(data.created_at),
+    mood: data.mood as MoodType,
+  };
 };
 
-export const getMoodTrends = (): MoodTrend[] => {
-  const total = mockJournalEntries.length;
-  const moodCounts = mockJournalEntries.reduce((acc, entry) => {
-    acc[entry.mood] = (acc[entry.mood] || 0) + 1;
-    return acc;
-  }, {} as Record<MoodType, number>);
+// Replace mock prompts with actual implementation
+export const getDailyPrompt = async (): Promise<DailyPrompt> => {
+  const today = format(new Date(), 'yyyy-MM-dd');
   
+  // In a real implementation, you would fetch this from the database
+  // For now, we'll return a default prompt
+  return {
+    id: '1',
+    text: "What's one thing you're grateful for today?",
+    date: new Date(),
+  };
+};
+
+// Replace mock data with actual implementation for mood trends
+export const getMoodTrends = async (): Promise<MoodTrend[]> => {
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('mood');
+  
+  if (error || !data) {
+    console.error('Error fetching mood trends:', error);
+    return [];
+  }
+  
+  // Count occurrences of each mood
+  const moodCounts: Record<string, number> = {};
+  data.forEach(entry => {
+    const mood = entry.mood;
+    moodCounts[mood] = (moodCounts[mood] || 0) + 1;
+  });
+  
+  const total = data.length;
+  
+  // Convert to MoodTrend array
   const trends: MoodTrend[] = Object.entries(moodCounts).map(([mood, count]) => ({
     mood: mood as MoodType,
     count,
