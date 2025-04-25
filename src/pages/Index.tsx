@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -9,41 +10,56 @@ import JournalEntryForm from '@/components/JournalEntryForm';
 import DailyPrompt from '@/components/DailyPrompt';
 import MoodVisualization from '@/components/MoodVisualization';
 import CalendarView from '@/components/CalendarView';
+import SystemPromptConfig from '@/components/SystemPromptConfig';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ScrollableTabs from '@/components/ScrollableTabs';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Settings } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
+/**
+ * Main index page component
+ * Displays journal entries, calendar, and writing interface
+ */
 const Index = () => {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isWriting, setIsWriting] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const isMobile = useIsMobile();
 
+  // Fetch all journal entries
   const { 
     data: entries = [],
     loading: entriesLoading,
     error: entriesError
   } = useAsyncData(getAllJournalEntries, []);
 
+  // Fetch entries for the selected date
   const { 
     data: filteredEntries = [],
     loading: filteredEntriesLoading,
     error: filteredEntriesError
   } = useAsyncData(() => getJournalEntriesByDate(selectedDate), [selectedDate]);
 
+  // Fetch daily prompt
   const {
     data: dailyPrompt,
     loading: promptLoading,
     error: promptError
   } = useAsyncData(getDailyPrompt, []);
 
+  // Fetch mood trends
   const {
     data: moodTrends = [],
     loading: trendsLoading,
     error: trendsError
   } = useAsyncData(getMoodTrends, []);
 
+  /**
+   * Handle creating a new journal entry
+   */
   const handleNewEntry = async (content: string, mood: MoodType, mediaFiles?: File[]) => {
     try {
       const newEntry = await addJournalEntry(content, mood, mediaFiles);
@@ -55,18 +71,30 @@ const Index = () => {
     }
   };
 
+  /**
+   * Handle clicking on the daily prompt
+   */
   const handlePromptClick = () => {
     setIsWriting(true);
   };
 
+  /**
+   * Handle clicking on a journal entry
+   */
   const handleEntryClick = (entry: JournalEntryType) => {
     navigate(`/entry/${entry.id}`);
   };
 
+  /**
+   * Handle selecting a date in the calendar
+   */
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
   };
 
+  /**
+   * Generate a range of dates around today
+   */
   const generateDateRange = () => {
     const dates: Date[] = [];
     const today = new Date();
@@ -84,6 +112,23 @@ const Index = () => {
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-white">
       <aside className="w-full md:w-[340px] lg:w-[380px] md:min-h-screen flex-shrink-0 bg-journal-surface border-b md:border-r border-journal-primary/10">
         <div className="p-4 space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="font-medium text-lg text-journal-secondary">Journal Dashboard</h2>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>System Settings</DialogTitle>
+                </DialogHeader>
+                <SystemPromptConfig />
+              </DialogContent>
+            </Dialog>
+          </div>
+          
           <CalendarView 
             onDateSelect={handleDateSelect}
             entries={entries || []}

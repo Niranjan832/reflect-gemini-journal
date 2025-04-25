@@ -4,11 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { generateGeminiResponse } from '@/utils/apiUtils';
 import { Loader2, Send, X, Image, Video } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import MediaUploader from './MediaUploader';
+import { localML } from '@/utils/ml/localInference';
 
+/**
+ * Message interface for chat history
+ */
 interface Message {
   id: string;
   text: string;
@@ -17,11 +20,19 @@ interface Message {
   mediaFiles?: File[];
 }
 
+/**
+ * Props for ChatInterface component
+ */
 interface ChatInterfaceProps {
   onSummarize: (messages: Message[]) => void;
 }
 
+/**
+ * Chat interface component for journal assistant
+ * Supports text and media uploads with AI responses
+ */
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
+  // State management
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '0',
@@ -39,8 +50,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
   // Media file support in chat mode
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
 
+  // Scroll to bottom when messages change
   useEffect(() => {
-    // Scroll to bottom when messages change
     if (scrollAreaRef.current) {
       const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (scrollContainer) {
@@ -49,9 +60,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
     }
   }, [messages]);
 
+  /**
+   * Handle sending a new message
+   */
   const handleSendMessage = async () => {
     if (!input.trim() && mediaFiles.length === 0) return;
 
+    // Create user message
     const userMessage: Message = {
       id: Date.now().toString(),
       text: input,
@@ -60,14 +75,33 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
       mediaFiles: mediaFiles.length ? mediaFiles : [],
     };
 
+    // Add user message to chat
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setMediaFiles([]);
     setIsLoading(true);
 
     try {
-      const response = await generateGeminiResponse(input);
+      // Format conversation history for the AI model
+      const conversationHistory = messages
+        .filter(msg => !msg.mediaFiles?.length) // Filter out messages with media for now
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        }))
+        .slice(-5); // Only use last 5 messages for context
+      
+      // Add user's current message
+      conversationHistory.push({
+        role: 'user',
+        content: input
+      });
+      
+      // Generate response using Ollama chat model
+      console.log('Generating chat response with history:', conversationHistory);
+      const response = await localML.generateChatResponse(conversationHistory);
 
+      // Add AI response to chat
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: response,
@@ -89,6 +123,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
     }
   };
 
+  /**
+   * Handle enter key for sending messages
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -96,11 +133,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
     }
   };
 
-  // Show attached media thumbnails in chat compose area
+  /**
+   * Handle media file uploads
+   */
   const handleMediaAdded = (files: File[]) => {
     setMediaFiles(files);
   };
 
+  /**
+   * Remove a media file from the upload queue
+   */
   const handleRemoveMedia = (idx: number) => {
     setMediaFiles(prev => {
       const updated = [...prev];
