@@ -1,4 +1,3 @@
-
 export interface MLModel {
   id: string;
   name: string;
@@ -9,7 +8,7 @@ export interface MLModel {
   temperature?: number;
 }
 
-export const models: Record<string, MLModel> = {
+export const models = {
   sentimentAnalysis: {
     id: 'sentiment-local',
     name: 'Sentiment Analysis Model',
@@ -40,5 +39,20 @@ export const models: Record<string, MLModel> = {
     task: 'feature-extraction',
     path: 'mixedbread-ai/mxbai-embed-xsmall-v1',
   },
+  'ollama-mistral': {
+    name: 'Mistral',
+    path: 'mistral:latest',
+    task: 'text-generation',
+    maxTokens: 200,
+    temperature: 0.7,
+    backend: 'ollama'
+  },
+  'ollama-llama2': {
+    name: 'Llama 2',
+    path: 'llama2:latest',
+    task: 'text-generation',
+    maxTokens: 250,
+    temperature: 0.6,
+    backend: 'ollama'
+  }
 };
-
