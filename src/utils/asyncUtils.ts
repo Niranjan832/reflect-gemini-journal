@@ -1,42 +1,37 @@
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+
+export interface AsyncResult<T> {
+  data: T | undefined;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+}
 
 export function useAsyncData<T>(
   asyncFn: () => Promise<T>,
   dependencies: any[] = []
-) {
-  const [data, setData] = useState<T | null>(null);
+): AsyncResult<T> {
+  const [data, setData] = useState<T>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const result = await asyncFn();
+      setData(result);
+      setError(null);
+    } catch (err) {
+      setError(err as Error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
-      try {
-        const result = await asyncFn();
-        if (isMounted) {
-          setData(result);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Async data fetch error:', err);
-          setError(err instanceof Error ? err : new Error('An unknown error occurred'));
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
     fetchData();
-
-    return () => {
-      isMounted = false;
-    };
   }, dependencies);
 
-  return { data, loading, error };
+  return { data, loading, error, refetch: fetchData };
 }

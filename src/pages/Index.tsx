@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +16,8 @@ import ScrollableTabs from '@/components/ScrollableTabs';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Settings } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import WritingStreak from '@/components/WritingStreak';
+import { getWritingStreak } from '@/utils/journal/streak';
 
 /**
  * Main index page component
@@ -56,6 +57,12 @@ const Index = () => {
     loading: trendsLoading,
     error: trendsError
   } = useAsyncData(getMoodTrends, []);
+
+  // Fetch writing streak data
+  const { 
+    data: streakData = { currentStreak: 0, longestStreak: 0 },
+    loading: streakLoading 
+  } = useAsyncData(getWritingStreak, []);
 
   /**
    * Handle creating a new journal entry
@@ -149,6 +156,12 @@ const Index = () => {
           ) : dailyPrompt ? (
             <DailyPrompt prompt={dailyPrompt} onClick={handlePromptClick} />
           ) : null}
+          {!streakLoading && (
+            <WritingStreak 
+              currentStreak={streakData.currentStreak}
+              longestStreak={streakData.longestStreak}
+            />
+          )}
         </div>
       </aside>
 
