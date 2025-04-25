@@ -7,6 +7,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarTrigger,
+  SidebarProvider
 } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -68,83 +69,85 @@ const SidePanel = () => {
   };
 
   return (
-    <Sidebar>
-      <SidebarContent>
-        <Accordion type="single" collapsible className="w-full">
-          <AccordionItem value="todos">
-            <AccordionTrigger className="py-2">
-              <div className="flex items-center gap-2">
-                <ListTodo className="h-4 w-4" />
-                <span>To-Do List</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent>
-              <SidebarGroup>
-                <SidebarGroupContent>
-                  <div className="space-y-4">
-                    <div className="flex gap-2">
-                      <Input
-                        value={newTodo}
-                        onChange={(e) => setNewTodo(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && addTodo()}
-                        placeholder="Add a new task..."
-                      />
-                      <Button onClick={addTodo} size="icon">
-                        <Plus className="h-4 w-4" />
-                      </Button>
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarContent>
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="todos">
+              <AccordionTrigger className="py-2">
+                <div className="flex items-center gap-2">
+                  <ListTodo className="h-4 w-4" />
+                  <span>To-Do List</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <SidebarGroup>
+                  <SidebarGroupContent>
+                    <div className="space-y-4">
+                      <div className="flex gap-2">
+                        <Input
+                          value={newTodo}
+                          onChange={(e) => setNewTodo(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && addTodo()}
+                          placeholder="Add a new task..."
+                        />
+                        <Button onClick={addTodo} size="icon">
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <ul className="space-y-2">
+                        {todos.map(todo => (
+                          <li key={todo.id} className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleTodo(todo.id)}
+                            >
+                              <Check className={`h-4 w-4 ${todo.completed ? 'text-green-500' : 'text-gray-300'}`} />
+                            </Button>
+                            <span className={`flex-1 ${todo.completed ? 'line-through text-gray-400' : ''}`}>
+                              {todo.text}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteTodo(todo.id)}
+                            >
+                              <Trash className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <ul className="space-y-2">
-                      {todos.map(todo => (
-                        <li key={todo.id} className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => toggleTodo(todo.id)}
-                          >
-                            <Check className={`h-4 w-4 ${todo.completed ? 'text-green-500' : 'text-gray-300'}`} />
-                          </Button>
-                          <span className={`flex-1 ${todo.completed ? 'line-through text-gray-400' : ''}`}>
-                            {todo.text}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteTodo(todo.id)}
-                          >
-                            <Trash className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </AccordionContent>
-          </AccordionItem>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </AccordionContent>
+            </AccordionItem>
 
-          <AccordionItem value="notes">
-            <AccordionTrigger className="py-2">
-              <div className="flex items-center gap-2">
-                <Notebook className="h-4 w-4" />
-                <span>Quick Notes</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent>
-              <SidebarGroup>
-                <SidebarGroupContent>
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Write your notes here..."
-                    className="min-h-[200px]"
-                  />
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </SidebarContent>
-    </Sidebar>
+            <AccordionItem value="notes">
+              <AccordionTrigger className="py-2">
+                <div className="flex items-center gap-2">
+                  <Notebook className="h-4 w-4" />
+                  <span>Quick Notes</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <SidebarGroup>
+                  <SidebarGroupContent>
+                    <Textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Write your notes here..."
+                      className="min-h-[200px]"
+                    />
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </SidebarContent>
+      </Sidebar>
+    </SidebarProvider>
   );
 };
 
