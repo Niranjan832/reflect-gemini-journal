@@ -14,7 +14,7 @@ import {
   Check,
   Trash,
   Edit,
-  Note
+  Notebook // Changed from Note to Notebook which is a valid icon
 } from 'lucide-react';
 
 interface TodoItem {
@@ -120,7 +120,7 @@ const SidePanel = () => {
           {/* Notes Section */}
           <section className="space-y-4">
             <h3 className="font-medium flex items-center gap-2">
-              <Note className="h-4 w-4" />
+              <Notebook className="h-4 w-4" />
               Quick Notes
             </h3>
             <Textarea
