@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -12,8 +11,8 @@ import MoodVisualization from '@/components/MoodVisualization';
 import CalendarView from '@/components/CalendarView';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ScrollableTabs from '@/components/ScrollableTabs';
 
-// Responsive one-screen layout, no unnecessary scroll
 const Index = () => {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -47,8 +46,6 @@ const Index = () => {
     try {
       const newEntry = await addJournalEntry(content, mood, mediaFiles);
       if (newEntry) {
-        // After adding, we'd want to refetch entries
-        // For now, just navigate to the entry detail
         navigate(`/entry/${newEntry.id}`);
       }
     } catch (err) {
@@ -68,10 +65,22 @@ const Index = () => {
     setSelectedDate(date);
   };
 
+  const generateDateRange = () => {
+    const dates: Date[] = [];
+    const today = new Date();
+    for (let i = -15; i <= 15; i++) {
+      const date = new Date();
+      date.setDate(today.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  };
+
+  const availableDates = generateDateRange();
+
   return (
     <div className="bg-white min-h-screen w-full h-screen overflow-hidden flex flex-col">
       <div className="flex flex-1 w-full h-full">
-        {/* Sidebar section: calendar + mood + prompt */}
         <div className="hidden lg:flex flex-col justify-between items-center w-[340px] min-w-[260px] h-full bg-journal-surface border-r border-journal-primary/10 p-0 overflow-y-auto">
           <div className="flex flex-col items-center w-full pt-5 pb-2 h-auto flex-shrink-0 min-h-[370px]">
             <CalendarView 
@@ -98,11 +107,12 @@ const Index = () => {
             ) : null}
           </div>
         </div>
-        {/* Main content */}
         <div className="flex-1 flex flex-col justify-between items-center w-full h-full bg-white px-2 sm:px-4 md:px-8 py-2">
           <header className="w-full pt-4 pb-2 flex flex-col items-center flex-shrink-0 bg-white">
             <h1 className="text-2xl md:text-3xl font-serif text-journal-secondary mb-0">Reflect</h1>
-            <p className="text-gray-500 text-xs md:text-base whitespace-nowrap">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</p>
+            <p className="text-gray-500 text-xs md:text-base whitespace-nowrap">
+              {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+            </p>
           </header>
           <div className="flex-1 w-full flex flex-col items-center overflow-visible" style={{ minHeight: 0 }}>
             <Tabs defaultValue={isWriting ? 'write' : 'view'} className="w-full max-w-2xl h-full flex-1 flex flex-col">
@@ -158,7 +168,6 @@ const Index = () => {
               </TabsContent>
             </Tabs>
           </div>
-          {/* Mobile sidebar below */}
           <div className="block lg:hidden w-full bg-journal-surface border-t border-journal-primary/10 px-2 py-3">
             <div className="mb-2">
               {trendsLoading ? (
