@@ -18,6 +18,7 @@ import { Settings } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import WritingStreak from '@/components/WritingStreak';
 import { getWritingStreak } from '@/utils/journal/streak';
+import SidePanel from '@/components/SidePanel';
 
 /**
  * Main index page component
@@ -117,6 +118,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-white">
+      <SidePanel />
       <aside className="w-full md:w-[340px] lg:w-[380px] md:min-h-screen flex-shrink-0 bg-journal-surface border-b md:border-r border-journal-primary/10">
         <div className="p-4 space-y-4">
           <div className="flex justify-between items-center">

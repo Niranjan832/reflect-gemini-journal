@@ -44,17 +44,27 @@ export const speechToText = async (audioData?: any): Promise<string> => {
     });
   }
   
-  // Fallback to ML model if browser API fails or audioData is provided
+  // Fallback to transcription model if browser API fails
   try {
     if (!audioData) {
       return "Please enable microphone access or provide audio data.";
     }
     
-    const result = await localML.transcribeSpeech(audioData);
-    return result.text || "Could not transcribe audio.";
+    // Use Ollama model for transcription
+    const response = await fetch('http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'whisper',
+        prompt: audioData,
+        stream: false
+      })
+    });
+    
+    const result = await response.json();
+    return result.response || "Could not transcribe audio.";
   } catch (error) {
     console.error('Error in speech-to-text conversion:', error);
     return "Error transcribing audio. Please try again.";
   }
 };
-
