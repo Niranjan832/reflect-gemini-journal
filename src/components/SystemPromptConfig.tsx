@@ -64,7 +64,7 @@ const SystemPromptConfig: React.FC = () => {
   // Get model options for dropdown
   const getModelOptions = () => {
     return Object.entries(models)
-      .filter(([id, model]) => model.backend === 'ollama')
+      .filter(([id, model]) => 'backend' in model && model.backend === 'ollama')
       .map(([id, model]) => ({
         id,
         name: model.name
