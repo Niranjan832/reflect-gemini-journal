@@ -50,6 +50,18 @@ const getDefaultReflection = (mood: MoodType): string => {
 };
 
 /**
+ * Detect mood from journal content using NLP
+ */
+export const detectMood = async (content: string): Promise<MoodType> => {
+  try {
+    return await localML.analyzeMood(content);
+  } catch (error) {
+    console.error('Error detecting mood:', error);
+    return 'neutral';
+  }
+};
+
+/**
  * Fetch mood trends from journal entries
  */
 export const getMoodTrends = async (): Promise<MoodTrend[]> => {

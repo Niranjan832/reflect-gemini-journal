@@ -27,7 +27,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDateSelect, entries }) =>
     return acc;
   }, {});
 
-  // The customDayRender function now receives only the Date for the day cell:
   const customDayRender = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const mood = moodDates[dateStr];
@@ -49,7 +48,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDateSelect, entries }) =>
           break;
       }
     }
-    // Highlight the selected day
+
     const isSelected = selectedDate && isSameDay(date, selectedDate);
 
     return (

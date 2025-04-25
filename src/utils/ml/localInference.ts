@@ -1,11 +1,10 @@
 
-import { pipeline } from '@huggingface/transformers';
-import { models } from '@/config/ml/models';
+import { pipeline, Pipeline } from '@huggingface/transformers';
+import { models, MLModel } from '@/config/ml/models';
 import { prompts } from '@/config/ml/prompts';
-import type { MLModel, SystemPrompt } from '@/config/ml/models';
 
 export class LocalMLManager {
-  private pipelines: Map<string, any> = new Map();
+  private pipelines: Map<string, Pipeline> = new Map();
 
   async loadModel(modelId: string) {
     if (this.pipelines.has(modelId)) {
@@ -17,11 +16,9 @@ export class LocalMLManager {
       throw new Error(`Model ${modelId} not found in configuration`);
     }
 
-    const pipe = await pipeline(
-      model.task,
-      model.path,
-      { device: 'webgpu' }
-    );
+    const pipe = await pipeline(model.task as any, model.path, {
+      device: 'webgpu'
+    });
 
     this.pipelines.set(modelId, pipe);
     return pipe;
@@ -44,9 +41,19 @@ export class LocalMLManager {
     return result;
   }
 
-  async analyzeSentiment(text: string) {
+  async analyzeMood(text: string): Promise<'happy' | 'neutral' | 'reflective' | 'sad'> {
     const model = await this.loadModel('sentimentAnalysis');
-    return await model(text);
+    const result = await model(text);
+    
+    // Map sentiment scores to mood
+    if (result[0].score > 0.6) {
+      return 'happy';
+    } else if (result[0].score > 0.4) {
+      return 'neutral';
+    } else if (result[0].score > 0.2) {
+      return 'reflective';
+    }
+    return 'sad';
   }
 
   async transcribeSpeech(audioData: any) {
