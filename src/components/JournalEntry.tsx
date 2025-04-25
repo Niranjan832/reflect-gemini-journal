@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,8 +30,15 @@ const getMoodColor = (mood: string): string => {
   return colors[mood] || 'bg-gray-100 border-gray-200 text-gray-800';
 };
 
+const getContentPreview = (content: string): string => {
+  const lines = content.split('\n', 2);
+  const preview = lines.join('\n');
+  return preview.length > 150 ? preview.substring(0, 150) + '...' : preview;
+};
+
 const JournalEntryComponent: React.FC<JournalEntryProps> = ({ entry, isDetailed = false }) => {
   const hasMedia = entry.media && entry.media.length > 0;
+  const contentToShow = isDetailed ? entry.content : getContentPreview(entry.content);
   
   return (
     <Card className="w-full overflow-hidden transition-all hover:shadow-md animate-fade-in">
@@ -61,11 +67,9 @@ const JournalEntryComponent: React.FC<JournalEntryProps> = ({ entry, isDetailed 
       
       <CardContent>
         <div className="space-y-4">
-          {isDetailed ? (
-            <p className="whitespace-pre-wrap text-gray-700">{entry.content}</p>
-          ) : (
-            <p className="line-clamp-3 text-gray-700">{entry.content}</p>
-          )}
+          <p className={`text-gray-700 ${isDetailed ? 'whitespace-pre-wrap' : ''}`}>
+            {contentToShow}
+          </p>
           
           {!isDetailed && hasMedia && (
             <div className="flex overflow-x-auto space-x-2 pb-2">
