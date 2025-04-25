@@ -1,11 +1,17 @@
 
-/**
- * Convert speech to text
- */
-export const speechToText = async (): Promise<string> => {
-  return new Promise(resolve => {
-    setTimeout(() => {
-      resolve("This is a placeholder for speech-to-text conversion. In a real implementation, this would be your spoken words transcribed to text.");
-    }, 1000);
-  });
+import { localML } from '@/utils/ml/localInference';
+
+export const speechToText = async (audioData?: any): Promise<string> => {
+  try {
+    if (!audioData) {
+      return "Please provide audio data for transcription.";
+    }
+    
+    const result = await localML.transcribeSpeech(audioData);
+    return result.text || "Could not transcribe audio.";
+  } catch (error) {
+    console.error('Error in speech-to-text conversion:', error);
+    return "Error transcribing audio. Please try again.";
+  }
 };
+

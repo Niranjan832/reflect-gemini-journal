@@ -1,6 +1,5 @@
-
 import { MoodType, MoodTrend } from '@/types/journal';
-import { generateGeminiResponse } from '@/utils/apiUtils';
+import { localML } from '@/utils/ml/localInference';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -8,8 +7,12 @@ import { supabase } from '@/lib/supabase';
  */
 export const generateAISummary = async (content: string): Promise<string> => {
   try {
-    const prompt = `Please summarize the following journal entry in a concise way (30 words or less):\n\n${content}`;
-    return await generateGeminiResponse(prompt);
+    const result = await localML.generateText(
+      content,
+      'textGeneration',
+      'journalSummary'
+    );
+    return result[0]?.generated_text || content;
   } catch (error) {
     console.error('Error generating AI summary:', error);
     return content.length > 100 
@@ -23,19 +26,27 @@ export const generateAISummary = async (content: string): Promise<string> => {
  */
 export const generateAIReflection = async (content: string, mood: MoodType): Promise<string> => {
   try {
-    const prompt = `Please provide a thoughtful, empathetic reflection (2-3 sentences) on this journal entry. The person's mood is ${mood}.\n\n${content}`;
-    return await generateGeminiResponse(prompt);
+    const result = await localML.generateText(
+      `Mood: ${mood}\n\nEntry: ${content}`,
+      'textGeneration',
+      'journalReflection'
+    );
+    return result[0]?.generated_text || getDefaultReflection(mood);
   } catch (error) {
     console.error('Error generating AI reflection:', error);
-    const reflections = {
-      'happy': 'It\'s great to see you\'re feeling positive. Keep this momentum going!',
-      'neutral': 'Days like these are important too. What small thing could make tomorrow a bit brighter?',
-      'reflective': 'Taking time to reflect shows great self-awareness. What insights will you carry forward?',
-      'sad': 'It\'s okay to have difficult days. Be gentle with yourself and remember that emotions are temporary.'
-    };
-    
-    return reflections[mood];
+    return getDefaultReflection(mood);
   }
+};
+
+const getDefaultReflection = (mood: MoodType): string => {
+  const reflections = {
+    'happy': 'It\'s great to see you\'re feeling positive. Keep this momentum going!',
+    'neutral': 'Days like these are important too. What small thing could make tomorrow a bit brighter?',
+    'reflective': 'Taking time to reflect shows great self-awareness. What insights will you carry forward?',
+    'sad': 'It\'s okay to have difficult days. Be gentle with yourself and remember that emotions are temporary.'
+  };
+  
+  return reflections[mood];
 };
 
 /**
