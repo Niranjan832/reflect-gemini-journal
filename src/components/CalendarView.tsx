@@ -4,6 +4,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { JournalEntry, MoodType } from '@/types/journal';
 import { format, isSameDay } from 'date-fns';
+import WritingStreak from './WritingStreak';
 
 interface CalendarViewProps {
   onDateSelect: (date: Date) => void;
@@ -64,24 +65,30 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDateSelect, entries }) =>
   };
 
   return (
-    <Card className="w-full max-w-full">
-      <CardHeader>
-        <CardTitle className="text-xl font-serif">Journal Calendar</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={handleDateSelect}
-          className="rounded-md border"
-          components={{
-            Day: ({ date }) => customDayRender(date),
-          }}
-        />
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="text-xl font-serif">Journal Calendar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={handleDateSelect}
+            className="rounded-md border max-w-full"
+            components={{
+              Day: ({ date }) => customDayRender(date),
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      <WritingStreak 
+        currentStreak={5} 
+        longestStreak={10} 
+      />
+    </div>
   );
 };
 
 export default CalendarView;
-
