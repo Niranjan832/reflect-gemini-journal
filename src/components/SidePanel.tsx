@@ -1,21 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent 
-} from "@/components/ui/collapsible";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { Book, ListTodo, StickyNote, Search, Plus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { 
-  PanelLeft, 
-  Plus, 
-  Check,
-  Trash,
-  Edit,
-  Notebook // Changed from Note to Notebook which is a valid icon
-} from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TodoItem {
   id: string;
@@ -23,16 +12,28 @@ interface TodoItem {
   completed: boolean;
 }
 
-const SidePanel = () => {
-  const [isOpen, setIsOpen] = useState(true);
+interface Note {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+}
+
+const SidePanel = ({ onViewChange }: { onViewChange: (view: string) => void }) => {
+  const [activeView, setActiveView] = useState<string>('diary');
   const [todos, setTodos] = useState<TodoItem[]>(() => {
     const saved = localStorage.getItem('todos');
     return saved ? JSON.parse(saved) : [];
   });
   const [newTodo, setNewTodo] = useState('');
-  const [notes, setNotes] = useState(() => {
-    return localStorage.getItem('notes') || '';
+  const [notes, setNotes] = useState<Note[]>(() => {
+    const saved = localStorage.getItem('notes-list');
+    return saved ? JSON.parse(saved) : [];
   });
+  const [noteText, setNoteText] = useState('');
+  const [noteTitle, setNoteTitle] = useState('');
+  const [activeNote, setActiveNote] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Persist todos
   useEffect(() => {
@@ -41,8 +42,13 @@ const SidePanel = () => {
 
   // Persist notes
   useEffect(() => {
-    localStorage.setItem('notes', notes);
+    localStorage.setItem('notes-list', JSON.stringify(notes));
   }, [notes]);
+
+  const changeView = (view: string) => {
+    setActiveView(view);
+    onViewChange(view);
+  };
 
   const addTodo = () => {
     if (newTodo.trim()) {
@@ -65,73 +71,106 @@ const SidePanel = () => {
     setTodos(todos.filter(todo => todo.id !== id));
   };
 
+  const addNote = () => {
+    if (noteTitle.trim() || noteText.trim()) {
+      const newNote = {
+        id: crypto.randomUUID(),
+        title: noteTitle.trim() || 'Untitled',
+        content: noteText.trim(),
+        createdAt: new Date().toISOString()
+      };
+      setNotes([newNote, ...notes]);
+      setNoteTitle('');
+      setNoteText('');
+      setActiveNote(null);
+    }
+  };
+
+  const updateNote = (id: string) => {
+    if (activeNote === id) {
+      setNotes(notes.map(note => 
+        note.id === id ? { ...note, title: noteTitle, content: noteText } : note
+      ));
+      setActiveNote(null);
+      setNoteTitle('');
+      setNoteText('');
+    } else {
+      const note = notes.find(n => n.id === id);
+      if (note) {
+        setNoteTitle(note.title);
+        setNoteText(note.content);
+        setActiveNote(id);
+      }
+    }
+  };
+
+  const deleteNote = (id: string) => {
+    setNotes(notes.filter(note => note.id !== id));
+    if (activeNote === id) {
+      setActiveNote(null);
+      setNoteTitle('');
+      setNoteText('');
+    }
+  };
+
+  const filteredNotes = notes.filter(note => 
+    note.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    note.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
   return (
-    <div className="min-h-screen border-r border-gray-200">
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <div className="p-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Workspace</h2>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <PanelLeft className="h-4 w-4" />
-            </Button>
-          </CollapsibleTrigger>
-        </div>
-
-        <CollapsibleContent className="p-4 space-y-6">
-          {/* To-do List Section */}
-          <section className="space-y-4">
-            <h3 className="font-medium">To-Do List</h3>
-            <div className="flex gap-2">
-              <Input
-                value={newTodo}
-                onChange={(e) => setNewTodo(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addTodo()}
-                placeholder="Add a new task..."
-              />
-              <Button onClick={addTodo} size="icon">
-                <Plus className="h-4 w-4" />
+    <div className="h-screen flex flex-col border-r border-gray-200 bg-gray-50">
+      {/* Sidebar Icons */}
+      <div className="flex flex-col items-center py-4 space-y-6">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant={activeView === 'diary' ? 'default' : 'ghost'} 
+                size="icon" 
+                onClick={() => changeView('diary')}
+                className={activeView === 'diary' ? 'bg-journal-primary text-white' : ''}
+              >
+                <Book className="h-5 w-5" />
               </Button>
-            </div>
-            <ul className="space-y-2">
-              {todos.map(todo => (
-                <li key={todo.id} className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => toggleTodo(todo.id)}
-                  >
-                    <Check className={`h-4 w-4 ${todo.completed ? 'text-green-500' : 'text-gray-300'}`} />
-                  </Button>
-                  <span className={`flex-1 ${todo.completed ? 'line-through text-gray-400' : ''}`}>
-                    {todo.text}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteTodo(todo.id)}
-                  >
-                    <Trash className="h-4 w-4 text-red-500" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {/* Notes Section */}
-          <section className="space-y-4">
-            <h3 className="font-medium flex items-center gap-2">
-              <Notebook className="h-4 w-4" />
-              Quick Notes
-            </h3>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Write your notes here..."
-              className="min-h-[200px]"
-            />
-          </section>
-        </CollapsibleContent>
-      </Collapsible>
+            </TooltipTrigger>
+            <TooltipContent side="right">Diary</TooltipContent>
+          </Tooltip>
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant={activeView === 'todo' ? 'default' : 'ghost'} 
+                size="icon" 
+                onClick={() => changeView('todo')}
+                className={activeView === 'todo' ? 'bg-journal-primary text-white' : ''}
+              >
+                <ListTodo className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">To-Do List</TooltipContent>
+          </Tooltip>
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant={activeView === 'notes' ? 'default' : 'ghost'} 
+                size="icon" 
+                onClick={() => changeView('notes')}
+                className={activeView === 'notes' ? 'bg-journal-primary text-white' : ''}
+              >
+                <StickyNote className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Notes</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
     </div>
   );
 };
