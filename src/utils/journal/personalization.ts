@@ -1,7 +1,7 @@
 
 import { JournalEntry } from '@/types/journal';
 import { supabase } from '@/lib/supabase';
-import { Message } from '@/types/chat';
+import { Message, ChatLog } from '@/types/chat';
 
 /**
  * Fetch the user's most recent journal entries
@@ -9,9 +9,13 @@ import { Message } from '@/types/chat';
  * @returns Array of recent journal entries
  */
 export const getRecentJournalEntries = async (limit = 7): Promise<JournalEntry[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
   const { data, error } = await supabase
     .from('journal_entries')
     .select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -25,6 +29,60 @@ export const getRecentJournalEntries = async (limit = 7): Promise<JournalEntry[]
     date: new Date(entry.created_at),
     mood: entry.mood,
   }));
+};
+
+/**
+ * Fetch recent chat logs for the current user
+ * @param limit Number of messages to fetch
+ * @returns Array of chat log entries
+ */
+export const getRecentChatLogs = async (limit = 10): Promise<ChatLog[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('chat_logs')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('timestamp', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching recent chat logs:', error);
+    return [];
+  }
+
+  return data;
+};
+
+/**
+ * Save a chat message to the database
+ * @param message The message to save
+ * @returns The saved message or null if an error occurred
+ */
+export const saveChatMessage = async (message: Message): Promise<ChatLog | null> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const chatLog: Omit<ChatLog, 'id'> = {
+    user_id: user.id,
+    message: message.text,
+    role: message.sender === 'ai' ? 'assistant' : 'user',
+    timestamp: message.timestamp.toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from('chat_logs')
+    .insert([chatLog])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error saving chat message:', error);
+    return null;
+  }
+
+  return data;
 };
 
 /**
@@ -49,7 +107,7 @@ export const generatePersonalizedPrompts = async (
       `${msg.sender === 'user' ? 'User' : 'Assistant'}: ${msg.text}`
     ).join('\n');
 
-    // System instructions for the AI
+    // System instructions for the API call
     const systemPrompt = `
       You are a reflective journaling assistant. Review the user's past journal entries and recent chat conversation.
       Based on this information, generate 3-5 personalized questions that will help them write a meaningful new journal entry.
@@ -65,12 +123,21 @@ export const generatePersonalizedPrompts = async (
       Example: ["Question one with emoji?", "Question two with emoji?", "Question three with emoji?"]
     `;
 
-    // API call to OpenAI
+    // Get OpenAI API key from Supabase
+    const { data: { session } } = await supabase.auth.getSession();
+    const apiKey = process.env.VITE_OPENAI_API_KEY || import.meta.env.VITE_OPENAI_API_KEY;
+
+    if (!apiKey) {
+      console.error('OpenAI API key not found');
+      return getDefaultPrompts();
+    }
+
+    // API call to OpenAI (can be moved to a Supabase Edge Function in production)
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
@@ -98,22 +165,24 @@ export const generatePersonalizedPrompts = async (
     try {
       const content = data.choices[0].message.content;
       const questions = JSON.parse(content);
-      return Array.isArray(questions) ? questions : [];
+      return Array.isArray(questions) ? questions : getDefaultPrompts();
     } catch (e) {
       console.error('Error parsing OpenAI response:', e);
-      return [
-        "How has your week been going? 📝",
-        "What's something you accomplished recently that you're proud of? 🌟",
-        "Is there anything that's been on your mind lately that you'd like to explore? 🤔",
-      ];
+      return getDefaultPrompts();
     }
   } catch (error) {
     console.error('Error generating personalized prompts:', error);
-    // Fallback questions if API call fails
-    return [
-      "How has your week been going? 📝",
-      "What's something you accomplished recently that you're proud of? 🌟",
-      "Is there anything that's been on your mind lately that you'd like to explore? 🤔",
-    ];
+    return getDefaultPrompts();
   }
+};
+
+/**
+ * Get default prompts when API call fails
+ */
+const getDefaultPrompts = (): string[] => {
+  return [
+    "How has your week been going? 📝",
+    "What's something you accomplished recently that you're proud of? 🌟",
+    "Is there anything that's been on your mind lately that you'd like to explore? 🤔",
+  ];
 };

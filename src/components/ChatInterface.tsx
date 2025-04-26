@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,9 +6,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Send, X, Image, Video, RefreshCcw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import MediaUploader from './MediaUploader';
-import { localML } from '@/utils/ml/localInference';
 import { Message } from '@/types/chat';
-import { getRecentJournalEntries, generatePersonalizedPrompts } from '@/utils/journal/personalization';
+import { 
+  getRecentJournalEntries, 
+  generatePersonalizedPrompts, 
+  saveChatMessage,
+  getRecentChatLogs
+} from '@/utils/journal/personalization';
+import { supabase } from '@/lib/supabase';
 
 /**
  * Props for ChatInterface component
@@ -43,10 +47,51 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
   // Media file support in chat mode
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
 
-  // Load personalized prompts when component mounts
+  // Load personalized prompts and chat history when component mounts
   useEffect(() => {
     loadPersonalizedPrompts();
+    loadChatHistory();
   }, []);
+
+  // Load chat history from Supabase
+  const loadChatHistory = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return; // Not authenticated
+
+      const { data, error } = await supabase
+        .from('chat_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: true })
+        .limit(20);
+
+      if (error) {
+        console.error('Error loading chat history:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Convert Supabase chat logs to Message format
+        const chatMessages: Message[] = data.map(log => ({
+          id: log.id,
+          text: log.message,
+          sender: log.role === 'assistant' ? 'ai' : 'user',
+          timestamp: new Date(log.timestamp),
+          mediaFiles: [],
+        }));
+
+        setMessages(prev => {
+          // Keep the welcome message if no history exists
+          return prev.length === 1 && prev[0].id === '0' && chatMessages.length > 0 
+            ? chatMessages 
+            : [...prev, ...chatMessages];
+        });
+      }
+    } catch (error) {
+      console.error('Error in loadChatHistory:', error);
+    }
+  };
 
   // Load personalized prompts based on journal history
   const loadPersonalizedPrompts = async () => {
@@ -92,6 +137,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
   const handleSendMessage = async () => {
     if (!input.trim() && mediaFiles.length === 0) return;
 
+    // Check if user is authenticated
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast({
+        title: "Not logged in",
+        description: "Please log in to use the chat feature",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Create user message
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -99,6 +155,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
       sender: 'user',
       timestamp: new Date(),
       mediaFiles: mediaFiles.length ? mediaFiles : [],
+      user_id: user.id,
     };
 
     // Add user message to chat
@@ -108,6 +165,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
     setIsLoading(true);
 
     try {
+      // Save user message to database
+      await saveChatMessage(userMessage);
+
       // Format conversation history for the AI model
       const conversationHistory = messages
         .filter(msg => !msg.mediaFiles?.length) // Filter out messages with media for now
@@ -123,18 +183,52 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
         content: input
       });
       
-      // Generate response using Ollama chat model
-      console.log('Generating chat response with history:', conversationHistory);
-      const response = await localML.generateChatResponse(conversationHistory);
+      // Get API key
+      const apiKey = process.env.VITE_OPENAI_API_KEY || import.meta.env.VITE_OPENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error('OpenAI API key not found');
+      }
+      
+      // Generate response using OpenAI
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a helpful journaling assistant that helps users reflect on their day and thoughts. Be empathetic, insightful, and encourage self-reflection.'
+            },
+            ...conversationHistory
+          ],
+          temperature: 0.7,
+        }),
+      });
+
+      const responseData = await response.json();
+      
+      if (!responseData.choices || !responseData.choices[0]) {
+        throw new Error('Invalid response from OpenAI');
+      }
+
+      const aiResponseText = responseData.choices[0].message.content;
 
       // Add AI response to chat
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: response,
+        text: aiResponseText,
         sender: 'ai',
         timestamp: new Date(),
         mediaFiles: [],
+        user_id: user.id,
       };
+
+      // Save AI response to database
+      await saveChatMessage(aiMessage);
 
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
@@ -273,7 +367,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
         </ScrollArea>
       </CardContent>
       <CardFooter className="pt-0 flex-col gap-2 bg-white flex-shrink-0">
-        {/* Media thumbnails to preview/remove before sending */}
         {mediaFiles.length > 0 && (
           <div className="flex gap-2 overflow-x-auto mb-1">
             {mediaFiles.map((file, idx) =>
