@@ -4,21 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Send, X, Image, Video } from 'lucide-react';
+import { Loader2, Send, X, Image, Video, RefreshCcw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import MediaUploader from './MediaUploader';
 import { localML } from '@/utils/ml/localInference';
-
-/**
- * Message interface for chat history
- */
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'ai';
-  timestamp: Date;
-  mediaFiles?: File[];
-}
+import { Message } from '@/types/chat';
+import { getRecentJournalEntries, generatePersonalizedPrompts } from '@/utils/journal/personalization';
 
 /**
  * Props for ChatInterface component
@@ -44,11 +35,46 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [personalizedPrompts, setPersonalizedPrompts] = useState<string[]>([]);
+  const [isLoadingPrompts, setIsLoadingPrompts] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   // Media file support in chat mode
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+
+  // Load personalized prompts when component mounts
+  useEffect(() => {
+    loadPersonalizedPrompts();
+  }, []);
+
+  // Load personalized prompts based on journal history
+  const loadPersonalizedPrompts = async () => {
+    setIsLoadingPrompts(true);
+    try {
+      const recentEntries = await getRecentJournalEntries(7);
+      if (recentEntries.length > 0) {
+        const prompts = await generatePersonalizedPrompts(recentEntries, messages);
+        setPersonalizedPrompts(prompts);
+      } else {
+        // Fallback prompts if no entries exist
+        setPersonalizedPrompts([
+          "How are you feeling today? 😊",
+          "What's one thing you accomplished today? 🌟",
+          "Is there anything on your mind that you'd like to reflect on? 💭",
+        ]);
+      }
+    } catch (error) {
+      console.error('Error loading personalized prompts:', error);
+      toast({
+        title: "Couldn't load personalized prompts",
+        description: "Using default prompts instead",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingPrompts(false);
+    }
+  };
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -124,6 +150,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
   };
 
   /**
+   * Handle using a personalized prompt
+   */
+  const handleUsePrompt = (prompt: string) => {
+    setInput(prompt);
+  };
+
+  /**
    * Handle enter key for sending messages
    */
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -155,11 +188,35 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onSummarize }) => {
     <Card className="w-full h-[min(430px,55vw)] flex flex-col bg-white overflow-hidden">
       <CardHeader className="pt-4 pb-2">
         <CardTitle className="text-lg sm:text-xl font-serif">Journal Assistant</CardTitle>
+        {personalizedPrompts.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-1">
+            {personalizedPrompts.map((prompt, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                size="sm"
+                className="text-xs text-left truncate max-w-[200px]"
+                onClick={() => handleUsePrompt(prompt)}
+              >
+                {prompt}
+              </Button>
+            ))}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={loadPersonalizedPrompts}
+              disabled={isLoadingPrompts}
+            >
+              <RefreshCcw className={`h-4 w-4 ${isLoadingPrompts ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden p-0">
         <ScrollArea className="h-[180px] sm:h-[270px] px-2" ref={scrollAreaRef}>
           <div className="space-y-4 pt-2">
-            {messages.map((msg, msgIdx) => (
+            {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
